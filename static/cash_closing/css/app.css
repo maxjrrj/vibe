@@ -1,0 +1,12 @@
+body {
+  background-color: #f5f7fb;
+}
+
+.card {
+  border: 0;
+}
+
+input,
+select {
+  width: 100%;
+}

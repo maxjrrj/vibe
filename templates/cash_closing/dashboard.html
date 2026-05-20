@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Gerencial{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-3">Painel gerencial</h1>
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h2 class="h6">Dia com maior venda (total bruto)</h2>
+        {% if highest_day %}
+            <p class="mb-0">
+                <strong>{{ highest_day.closing_date|date:'d/m/Y' }}</strong> - {{ highest_day.store.name }}
+                (R$ {{ highest_day.total_bruto }})
+            </p>
+        {% else %}
+            <p class="mb-0 text-muted">Sem dados disponíveis.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><h2 class="h6">Vendas por dia do mês</h2><p class="small text-muted">Melhor: dia {{ best_day_month.day|default:'-' }} | Pior: dia {{ worst_day_month.day|default:'-' }}</p><canvas id="salesDayOfMonth"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><h2 class="h6">Vendas por dia da semana</h2><p class="small text-muted">Melhor: {{ best_weekday_label|default:'-' }} | Pior: {{ worst_weekday_label|default:'-' }}</p><canvas id="salesWeekday"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><h2 class="h6">Despesas por mês</h2><canvas id="expenseMonth"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><h2 class="h6">Crescimento de despesas por tipo</h2><canvas id="expenseType"></canvas></div></div></div>
+    <div class="col-lg-12"><div class="card shadow-sm"><div class="card-body"><h2 class="h6">Crescimento de despesas por tipo de pagamento</h2><canvas id="expensePayment"></canvas></div></div></div>
+</div>
+
+{{ day_of_month_chart|json_script:'day-month-data' }}
+{{ weekday_chart|json_script:'weekday-data' }}
+{{ expense_month_chart|json_script:'expense-month-data' }}
+{{ expense_by_type_chart|json_script:'expense-type-data' }}
+{{ expense_by_payment_chart|json_script:'expense-payment-data' }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+function renderBasicChart(canvasId, payload, label, color, type='bar') {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    new Chart(ctx, {
+        type,
+        data: {
+            labels: payload.labels,
+            datasets: [{
+                label,
+                data: payload.values,
+                borderColor: color,
+                backgroundColor: color + '55',
+                borderWidth: 2,
+                tension: 0.2
+            }]
+        }
+    });
+}
+
+function renderSegmentedChart(canvasId, payload) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    const colors = ['#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1', '#20c997'];
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: payload.labels,
+            datasets: payload.datasets.map((dataset, index) => ({
+                label: dataset.label,
+                data: dataset.data,
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '44',
+                tension: 0.25
+            }))
+        }
+    });
+}
+
+const dayMonthData = JSON.parse(document.getElementById('day-month-data').textContent);
+const weekDayData = JSON.parse(document.getElementById('weekday-data').textContent);
+const expenseMonthData = JSON.parse(document.getElementById('expense-month-data').textContent);
+const expenseTypeData = JSON.parse(document.getElementById('expense-type-data').textContent);
+const expensePaymentData = JSON.parse(document.getElementById('expense-payment-data').textContent);
+
+renderBasicChart('salesDayOfMonth', dayMonthData, 'Total bruto', '#0d6efd');
+renderBasicChart('salesWeekday', weekDayData, 'Total bruto', '#20c997');
+renderBasicChart('expenseMonth', expenseMonthData, 'Despesas', '#dc3545', 'line');
+renderSegmentedChart('expenseType', expenseTypeData);
+renderSegmentedChart('expensePayment', expensePaymentData);
+</script>
+{% endblock %}

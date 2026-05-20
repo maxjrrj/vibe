@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Fechamento Operacional{% endblock %}
+
+{% block content %}
+<h1 class="h4">Fechamento diário - {{ today|date:'d/m/Y' }}</h1>
+
+{% if is_admin %}
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select class="form-select" name="store" onchange="this.form.submit()">
+            {% for store in stores %}
+                <option value="{{ store.id }}" {% if store.id == selected_store.id %}selected{% endif %}>{{ store.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% if request.GET.edit == '1' %}
+        <input type="hidden" name="edit" value="1">
+    {% endif %}
+</form>
+{% else %}
+<p class="text-muted">Loja: <strong>{{ selected_store.name }}</strong></p>
+{% endif %}
+
+{% if blocked %}
+<div class="alert alert-warning">
+    Já existe fechamento para hoje em {{ selected_store.name }}.
+    O formulário está bloqueado até que você escolha editar.
+</div>
+<a class="btn btn-primary" href="?store={{ selected_store.id }}&edit=1">Editar fechamento de hoje</a>
+{% else %}
+{% if closing %}
+<div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card card-body"><small>Total bruto</small><strong>R$ {{ closing.total_bruto }}</strong></div></div>
+    <div class="col-md-3"><div class="card card-body"><small>Total líquido</small><strong>R$ {{ closing.total_liquido }}</strong></div></div>
+    <div class="col-md-3"><div class="card card-body"><small>Total despesas</small><strong>R$ {{ closing.total_despesas }}</strong></div></div>
+    <div class="col-md-3"><div class="card card-body"><small>Saldo dia</small><strong>R$ {{ closing.saldo_dia }}</strong></div></div>
+</div>
+{% endif %}
+<form method="post" class="card card-body shadow-sm">
+    {% csrf_token %}
+    {% if is_admin %}
+        <input type="hidden" name="store" value="{{ selected_store.id }}">
+    {% endif %}
+    <h2 class="h6">Totais do caixa</h2>
+    <div class="row g-3 mb-4">
+        {% for field in form %}
+            <div class="col-md-4">
+                {{ field.label_tag }}
+                {{ field }}
+                {{ field.errors }}
+            </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="h6">Despesas (opcional)</h2>
+    {{ formset.management_form }}
+    <div id="expense-forms" class="d-flex flex-column gap-2">
+        {% for expense_form in formset %}
+            <div class="row g-2 align-items-end expense-form">
+                {{ expense_form.id }}
+                <div class="col-md-3">{{ expense_form.tipo_despesa }}</div>
+                <div class="col-md-3">{{ expense_form.tipo_pagamento }}</div>
+                <div class="col-md-2">{{ expense_form.valor }}</div>
+                <div class="col-md-3">{{ expense_form.descricao }}</div>
+                <div class="col-md-1">
+                    {{ expense_form.DELETE }}
+                    <button class="btn btn-outline-danger btn-sm w-100 remove-expense" type="button">X</button>
+                </div>
+                {% for hidden in expense_form.hidden_fields %}{{ hidden }}{% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+    <button id="add-expense" class="btn btn-outline-secondary btn-sm mt-3" type="button">Adicionar despesa</button>
+
+    <div class="mt-4">
+        <button class="btn btn-success" type="submit">Salvar fechamento</button>
+    </div>
+</form>
+
+<template id="empty-form-template">
+    <div class="row g-2 align-items-end expense-form">
+        {{ formset.empty_form.id }}
+        <div class="col-md-3">{{ formset.empty_form.tipo_despesa }}</div>
+        <div class="col-md-3">{{ formset.empty_form.tipo_pagamento }}</div>
+        <div class="col-md-2">{{ formset.empty_form.valor }}</div>
+        <div class="col-md-3">{{ formset.empty_form.descricao }}</div>
+        <div class="col-md-1">
+            {{ formset.empty_form.DELETE }}
+            <button class="btn btn-outline-danger btn-sm w-100 remove-expense" type="button">X</button>
+        </div>
+    </div>
+</template>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const addButton = document.getElementById('add-expense');
+    const formsContainer = document.getElementById('expense-forms');
+    const totalFormsInput = document.getElementById('id_expenses-TOTAL_FORMS');
+    const template = document.getElementById('empty-form-template');
+
+    function attachRemoveHandlers(scope) {
+        scope.querySelectorAll('.remove-expense').forEach((button) => {
+            button.onclick = function() {
+                const row = this.closest('.expense-form');
+                const deleteInput = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+                if (deleteInput) {
+                    deleteInput.checked = true;
+                    row.classList.add('d-none');
+                }
+            };
+        });
+    }
+
+    if (formsContainer) {
+        attachRemoveHandlers(formsContainer);
+    }
+
+    if (addButton && template && totalFormsInput && formsContainer) {
+        addButton.addEventListener('click', function() {
+            const index = parseInt(totalFormsInput.value, 10);
+            const html = template.innerHTML.replaceAll('__prefix__', index);
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html.trim();
+            formsContainer.appendChild(wrapper.firstChild);
+            totalFormsInput.value = index + 1;
+            attachRemoveHandlers(formsContainer);
+        });
+    }
+})();
+</script>
+{% endblock %}
