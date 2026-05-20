@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Login | Vibe{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <h1 class="h4 mb-3">Entrar</h1>
+        <form method="post" class="card card-body shadow-sm">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="mb-3">
+                {{ form.username_or_email.label_tag }}
+                {{ form.username_or_email }}
+            </div>
+            <div class="mb-3">
+                {{ form.password.label_tag }}
+                {{ form.password }}
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Entrar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
